@@ -1,0 +1,18 @@
+Common: &Common
+  EventEncode: "json"
+  HttpListenAddr: "localhost:3001"
+  BasePath: ""
+  IdleInterval: 10
+HttpEventProvider:
+  <<: *Common
+  EventGetPath: "/api/event/get"
+  EventCountPath: "/api/event/count"
+  EventClearPath: "/api/event/clear"
+  MaxEventFetchSize: 100
+HttpEventReceiver:
+  <<: *Common
+  EventPostPath: "/api/event/post"
+TcpOutput:
+  <<: *Common
+  DestAddr: "localhost:7890"
+  ReadBufferSize: 8192

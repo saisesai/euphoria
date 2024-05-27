@@ -1,0 +1,17 @@
+Common: &Common
+  EventEncode: "json"
+  BaseAddr: "http://localhost:3001"
+  IdleInterval: 10
+TcpInput:
+  <<: *Common
+  ListenAddr: ":3002"
+  ReadBufferSize: 8192
+  OpenTimeout: 3000
+HttpEventRetriever:
+  <<: *Common
+  EventGetPath: "/api/event/get"
+  EventCountPath: "/api/event/count"
+  EventClearPath: "/api/event/clear"
+HttpEventSender:
+  <<: *Common
+  EventPostPath: "/api/event/post"
