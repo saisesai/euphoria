@@ -26,7 +26,7 @@ type HttpEventRetriever struct {
 func NewHttpEventRetriever(config *HttpEventRetrieverConfig, client *http.Client, next EventQueue) *HttpEventRetriever {
 	return &HttpEventRetriever{
 		Config: config,
-		Logger: logrus.WithField("From", "HttpEventRetriever"),
+		Logger: logrus.WithField("Fm", "HttpEventRetriever"),
 		Client: client,
 		Next:   next,
 	}
@@ -65,9 +65,9 @@ func (m *HttpEventRetriever) Update() {
 	for _, event := range events {
 		m.Next.Push(event)
 		// TODO comment
-		//if event.Name == "TcpData" {
+		//if event.Nm == "TcpData" {
 		//	fmt.Println("===rtv===")
-		//	fmt.Println(string(event.Data[:]))
+		//	fmt.Println(string(event.Dt[:]))
 		//}
 	}
 	m.Next.Unlock()

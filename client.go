@@ -33,7 +33,7 @@ type Client struct {
 func NewClient(config *ClientConfig) (client *Client) {
 	client = &Client{
 		Config:     config,
-		Logger:     logrus.WithField("From", "Client"),
+		Logger:     logrus.WithField("Fm", "Client"),
 		HttpClient: &http.Client{},
 	}
 	client.HttpEventSender = NewHttpEventSender(&config.HttpEventSender, client.HttpClient)

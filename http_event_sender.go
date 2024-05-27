@@ -25,7 +25,7 @@ func NewHttpEventSender(config *HttpEventSenderConfig, client *http.Client) *Htt
 	return &HttpEventSender{
 		EventQueueImpl: EventQueueImpl{},
 		Config:         config,
-		Logger:         logrus.WithField("From", "HttpEventSender"),
+		Logger:         logrus.WithField("Fm", "HttpEventSender"),
 		Client:         client,
 	}
 }
@@ -33,43 +33,47 @@ func (m *HttpEventSender) Idle() {
 	time.Sleep(time.Millisecond * time.Duration(m.Config.IdleInterval))
 }
 
+func (m *HttpEventSender) Update() {
+	m.Lock()
+	empty := m.Empty()
+	m.Unlock()
+	if empty {
+		m.Idle()
+		return
+	}
+	// get event
+	var events []*Event
+	m.Lock()
+	for !m.Empty() {
+		events = append(events, m.Front())
+		m.Pop()
+	}
+	m.Unlock()
+
+	// TODO post data type detect
+	data, err := Encode(m.Config.EventEncode, &events)
+	if err != nil {
+		m.Logger.WithError(err).Error("")
+		return
+	}
+	// send events
+	for {
+		res, err := m.Client.Post(m.Config.BaseAddr+m.Config.EventPostPath,
+			m.Config.EventEncode,
+			bytes.NewReader(data[:]),
+		)
+		res.Body.Close()
+		if err == nil && res.StatusCode == http.StatusOK {
+			break
+		} else {
+			m.Logger.WithError(err).WithField("Code", res.StatusCode).Errorln("failed to post events! retry!")
+		}
+	}
+	//m.Logger.Debugf("send %v events", len(events))
+}
+
 func (m *HttpEventSender) Run() {
 	for {
-		m.Lock()
-		empty := m.Empty()
-		m.Unlock()
-		if empty {
-			m.Idle()
-			continue
-		}
-		// get event
-		var events []*Event
-		m.Lock()
-		for !m.Empty() {
-			events = append(events, m.Front())
-			m.Pop()
-		}
-		m.Unlock()
-		// send events
-		// TODO post data type detect
-		data, _ := Encode("json", &events)
-		for {
-			res, err := m.Client.Post(m.Config.BaseAddr+m.Config.EventPostPath,
-				"application/json",
-				bytes.NewReader(data[:]),
-			)
-			if err == nil && res.StatusCode == http.StatusOK {
-				res.Body.Close()
-				break
-			}
-			if err != nil {
-				m.Logger.WithError(err).Errorln("failed to post events!")
-			}
-			if res.StatusCode != http.StatusOK {
-				m.Logger.Errorf("unexpected status code: %v", res.StatusCode)
-			}
-			res.Body.Close()
-		}
-		//m.Logger.Debugf("send %v events", len(events))
+		m.Update()
 	}
 }

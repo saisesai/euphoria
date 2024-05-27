@@ -34,7 +34,7 @@ type Server struct {
 func NewServer(config *ServerConfig) (server *Server) {
 	server = &Server{
 		Config:     config,
-		Logger:     logrus.WithField("From", "HttpServer"),
+		Logger:     logrus.WithField("Fm", "HttpServer"),
 		HttpServer: http.NewServeMux(),
 	}
 	server.HttpEventProvider = NewHttpEventProvider(&config.HttpEventProvider, server.HttpServer)

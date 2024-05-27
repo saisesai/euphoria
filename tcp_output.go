@@ -2,7 +2,9 @@ package euphoria
 
 import (
 	"github.com/sirupsen/logrus"
+	"io"
 	"net"
+	"strings"
 	"sync"
 	"time"
 )
@@ -26,7 +28,7 @@ func NewTcpOutput(config *TcpOutputConfig, next EventQueue) *TcpOutput {
 	tcpOutput := &TcpOutput{
 		EventQueueImpl: EventQueueImpl{},
 		Config:         config,
-		Logger:         logrus.WithField("From", "TcpOutput"),
+		Logger:         logrus.WithField("Fm", "TcpOutput"),
 		Registry:       make(map[string]*Connect),
 		RegistryMutex:  sync.Mutex{},
 		Next:           next,
@@ -57,7 +59,7 @@ func (m *TcpOutput) Update() {
 	m.Unlock()
 	// process events
 	for i := 0; i < len(events); i++ {
-		switch events[i].Name {
+		switch events[i].Nm {
 		case "TcpOpen":
 			m.HandleOpenEvent(events[i])
 		case "TcpData":
@@ -65,7 +67,7 @@ func (m *TcpOutput) Update() {
 		case "TcpClose":
 			m.HandleCloseEvent(events[i])
 		default:
-			m.Logger.Errorf("invalid event type: %v", events[i].Name)
+			m.Logger.Errorf("invalid event type: %v", events[i].Nm)
 		}
 	}
 }
@@ -83,16 +85,17 @@ func (m *TcpOutput) Poll(connect *Connect) {
 		m.RegistryMutex.Lock()
 		defer m.RegistryMutex.Unlock()
 		delete(m.Registry, connect.From)
+		m.Logger.Debugf("conn %v removed from registry", connect.From)
 		// send close event
 		closeEvent := &Event{
-			Name: "TcpClose",
-			To:   connect.To,
-			From: connect.From,
-			Time: time.Now().UnixNano(),
-			Data: nil,
+			Nm: "TcpClose",
+			To: connect.To,
+			Fm: connect.From,
+			Tm: time.Now().UnixNano(),
+			Dt: nil,
 		}
 		m.Next.Push(closeEvent)
-		m.Logger.Infof("conn %v closed!", connect.Conn.RemoteAddr().String())
+		m.Logger.WithField("Alive", len(m.Registry)).Infof("conn %v closed!", connect.To)
 	}()
 	// poll
 	buf := make([]byte, m.Config.ReadBufferSize)
@@ -100,7 +103,9 @@ func (m *TcpOutput) Poll(connect *Connect) {
 		// read data
 		n, err := connect.Conn.Read(buf[:])
 		if err != nil {
-			m.Logger.WithError(err).Errorln("failed to read conn!")
+			if err != io.EOF && !strings.Contains(err.Error(), "use of closed network connection") {
+				m.Logger.WithError(err).Errorln("failed to read conn!")
+			}
 			break
 		}
 		m.Logger.Debugf("read %v bytes form %v", n, connect.Conn.RemoteAddr().String())
@@ -108,11 +113,11 @@ func (m *TcpOutput) Poll(connect *Connect) {
 		copy(eventData, buf[:n])
 		// send data event
 		dataEvent := &Event{
-			Name: "TcpData",
-			To:   connect.To,
-			From: connect.From,
-			Time: time.Now().UnixNano(),
-			Data: eventData,
+			Nm: "TcpData",
+			To: connect.To,
+			Fm: connect.From,
+			Tm: time.Now().UnixNano(),
+			Dt: eventData,
 		}
 		m.Next.Lock()
 		m.Next.Push(dataEvent)
@@ -121,7 +126,7 @@ func (m *TcpOutput) Poll(connect *Connect) {
 }
 
 func (m *TcpOutput) HandleOpenEvent(event *Event) {
-	L := m.Logger.WithField("TcpFrom", event.From).WithField("TcpTo", event.To)
+	L := m.Logger.WithField("TcpFrom", event.Fm).WithField("TcpTo", event.To)
 	L.Debug("open event received!")
 	// dial to dest
 	conn, err := net.Dial("tcp", m.Config.DestAddr)
@@ -133,19 +138,21 @@ func (m *TcpOutput) HandleOpenEvent(event *Event) {
 	connect := &Connect{
 		Conn:  conn,
 		From:  conn.LocalAddr().String(),
-		To:    event.From,
+		To:    event.Fm,
 		Ready: nil,
 	}
 	m.RegistryMutex.Lock()
 	m.Registry[connect.From] = connect
 	m.RegistryMutex.Unlock()
+	// log
+	m.Logger.WithField("Alive", len(m.Registry)).Infof("conn %v connected!", event.Fm)
 	// make open event back to origin
 	openEvent := &Event{
-		Name: "TcpOpen",
-		To:   connect.To,
-		From: connect.From,
-		Time: time.Now().UnixNano(),
-		Data: nil,
+		Nm: "TcpOpen",
+		To: connect.To,
+		Fm: connect.From,
+		Tm: time.Now().UnixNano(),
+		Dt: nil,
 	}
 	m.Next.Lock()
 	m.Next.Push(openEvent)
@@ -155,29 +162,29 @@ func (m *TcpOutput) HandleOpenEvent(event *Event) {
 }
 
 func (m *TcpOutput) HandleDataEvent(event *Event) {
-	L := m.Logger.WithField("TcpFrom", event.From).WithField("TcpTo", event.To)
-	L.Debugf("data event received! data size: %v", len(event.Data))
+	L := m.Logger.WithField("TcpFrom", event.Fm).WithField("TcpTo", event.To)
+	L.Debugf("data event received! data size: %v", len(event.Dt))
 	m.RegistryMutex.Lock()
 	// check registry
 	connect, exist := m.Registry[event.To]
 	m.RegistryMutex.Unlock()
 	if !exist {
-		L.Error("cannot find conn in registry!")
+		L.Debug("cannot find conn in registry!")
 		return
 	}
 	// process event
-	_, _ = connect.Conn.Write(event.Data[:])
+	_, _ = connect.Conn.Write(event.Dt[:])
 }
 
 func (m *TcpOutput) HandleCloseEvent(event *Event) {
-	L := m.Logger.WithField("TcpFrom", event.From).WithField("TcpTo", event.To)
+	L := m.Logger.WithField("TcpFrom", event.Fm).WithField("TcpTo", event.To)
 	L.Debug("close event received!")
 	m.RegistryMutex.Lock()
 	defer m.RegistryMutex.Unlock()
 	// check registry
 	connect, exist := m.Registry[event.To]
 	if !exist {
-		L.Error("cannot find conn in registry")
+		L.Debug("cannot find conn in registry")
 		return
 	}
 	// process event

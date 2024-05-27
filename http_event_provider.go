@@ -26,7 +26,7 @@ func NewHttpEventProvider(config *HttpEventProviderConfig, httpServer *http.Serv
 	provider = &HttpEventProvider{
 		EventQueueImpl: EventQueueImpl{},
 		Config:         config,
-		Logger:         logrus.WithField("From", "HttpEventProvider"),
+		Logger:         logrus.WithField("Fm", "HttpEventProvider"),
 		HttpServer:     httpServer,
 	}
 	provider.SetupHandler()
@@ -51,9 +51,9 @@ func (m *HttpEventProvider) HttpEventGetHandler() http.HandlerFunc {
 		m.Unlock()
 		// TODO comment
 		//for _, event := range events {
-		//	if event.Name == "TcpData" {
+		//	if event.Nm == "TcpData" {
 		//		fmt.Println("===pv===")
-		//		fmt.Println(string(event.Data[:]))
+		//		fmt.Println(string(event.Dt[:]))
 		//	}
 		//}
 		// encode events

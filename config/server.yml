@@ -1,5 +1,5 @@
 Common: &Common
-  EventEncode: "json"
+  EventEncode: "application/msgpack"
   HttpListenAddr: "localhost:3001"
   BasePath: ""
   IdleInterval: 10

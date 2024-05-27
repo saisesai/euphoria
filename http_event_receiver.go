@@ -23,7 +23,7 @@ type HttpEventReceiver struct {
 func NewHttpEventReceiver(config *HttpEventReceiverConfig, httpServer *http.ServeMux, next EventQueue) *HttpEventReceiver {
 	receiver := &HttpEventReceiver{
 		Config:     config,
-		Logger:     logrus.WithField("From", "HttpEventReceiver"),
+		Logger:     logrus.WithField("Fm", "HttpEventReceiver"),
 		HttpServer: httpServer,
 		Next:       next,
 	}

@@ -15,7 +15,7 @@ var argDebug = flag.Bool("debug", false, "debug mode")
 var argMode = flag.String("mode", "", "running mode: [client/server/http-proxy]")
 var argConfig = flag.String("config", "", "config file path")
 
-var L = logrus.WithField("From", "main")
+var L = logrus.WithField("Fm", "main")
 
 func processArgs() {
 	flag.Parse()

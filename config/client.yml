@@ -1,5 +1,5 @@
 Common: &Common
-  EventEncode: "json"
+  EventEncode: "application/msgpack"
   BaseAddr: "http://localhost:3001"
   IdleInterval: 10
 TcpInput:
@@ -9,6 +9,7 @@ TcpInput:
   OpenTimeout: 3000
 HttpEventRetriever:
   <<: *Common
+  IdleInterval: 100
   EventGetPath: "/api/event/get"
   EventCountPath: "/api/event/count"
   EventClearPath: "/api/event/clear"
